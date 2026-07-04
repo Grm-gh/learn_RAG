@@ -1,0 +1,37 @@
+# LLM
+mistralai
+
+# LangChain ecosystem
+langchain
+langchain-core
+langchain-community
+langchain-mistralai
+langchain-huggingface
+langchain-text-splitters
+
+# Embeddings and transformers
+sentence-transformers
+transformers
+huggingface_hub
+
+# Vector databases (choose one or more)
+faiss-cpu
+chromadb
+
+# Document loaders
+pypdf
+pymupdf
+python-docx
+
+
+# Environment variables
+python-dotenv
+
+# API and web app (optional)
+fastapi
+uvicorn
+
+# Utilities
+tiktoken
+numpy
+pandas

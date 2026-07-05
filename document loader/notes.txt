@@ -1,1 +1,3 @@
 this is my first ai project
+help me in this 
+this is for text splitting

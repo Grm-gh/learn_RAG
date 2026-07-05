@@ -1,169 +1,176 @@
-from dotenv import load_dotenv
-load_dotenv()
-
+import time
 import streamlit as st
 from langchain_mistralai import ChatMistralAI
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 
-# --------------------------------
-# Page Config
-# --------------------------------
-
+# =====================================================
+# PAGE CONFIG - Set wide layout and clean title
+# =====================================================
 st.set_page_config(
-    page_title="RAG Chatbot",
+    page_title="RAG AI Assistant",
     page_icon="🤖",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# --------------------------------
-# Custom CSS
-# --------------------------------
+# =====================================================
+# ENHANCED UI STYLING (CSS)
+# =====================================================
 st.markdown("""
 <style>
-.main {
-    background-color: #0E1117;
-}
+    /* Main Background */
+    .stApp {
+        background-color: #0f172a;
+        color: #f8fafc;
+    }
+    
+    /* Sidebar Styling */
+    section[data-testid="stSidebar"] {
+        background-color: #1e293b;
+        border-right: 1px solid #334155;
+    }
+    
+    /* Chat Message Styling */
+    .stChatMessage {
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 10px;
+    }
+    
+    /* Metrics Styling */
+    .metric-container {
+        background: #1e293b;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid #334155;
+    }
+    .metric-value {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #38bdf8;
+    }
+    .metric-label {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+    }
 
-.stChatMessage {
-    border-radius: 15px;
-    padding: 10px;
-}
-
-.title {
-    text-align:center;
-    font-size:45px;
-    font-weight:bold;
-    color:#4CAF50;
-}
-
-.subtitle {
-    text-align:center;
-    color:gray;
-    margin-bottom:20px;
-}
+    /* Context Expander */
+    .streamlit-expanderHeader {
+        background: #1e293b;
+        border-radius: 8px;
+    }
+    
+    /* Typography */
+    h1 { color: #f8fafc !important; }
+    .stMarkdown, .stText { color: #e2e8f0; }
 </style>
 """, unsafe_allow_html=True)
 
-# --------------------------------
-# Header
-# --------------------------------
-st.markdown(
-    '<p class="title">🤖 RAG Chatbot</p>',
-    unsafe_allow_html=True
-)
+# =====================================================
+# HEADER SECTION
+# =====================================================
+st.title("🤖 RAG AI Assistant")
+st.markdown("##### *LangChain • ChromaDB • Mistral AI*")
+st.markdown("---")
 
-st.markdown(
-    '<p class="subtitle">LangChain + ChromaDB + Mistral AI</p>',
-    unsafe_allow_html=True
-)
-
-# --------------------------------
-# Load Models
-# --------------------------------
-@st.cache_resource
-def load_components():
-
-    embedding = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-
-    vectorstore = Chroma(
-        persist_directory="chroma-db",
-        embedding_function=embedding
-    )
-
-    retriever = vectorstore.as_retriever(
-        search_type="mmr",
-        search_kwargs={
-            "k":4,
-            "fetch_k":10,
-            "lambda_mult":0.5
+# =====================================================
+# SIDEBAR - Structured Configuration Panel
+# =====================================================
+with st.sidebar:
+    st.header("⚙️ Configuration")
+    
+    # Using columns inside sidebar for a compact look
+    st.info("**Active Stack**")
+    st.write("• **LLM:** Mistral Small")
+    st.write("• **Vector DB:** Chroma")
+    st.write("• **Embedding:** MiniLM")
+    st.write("• **Search:** MMR")
+    
+    st.divider()
+    
+    st.caption("Pipeline Architecture")
+    st.graphviz_chart('''
+        digraph {
+            node [shape=box, style=rounded, fontname="sans-serif", fontsize=10];
+            User -> Retriever -> ChromaDB -> Context -> Mistral -> Answer;
         }
-    )
+    ''')
 
-    llm = ChatMistralAI(
-        model="mistral-small-2603"
+# =====================================================
+# LOAD COMPONENTS (Cached)
+# =====================================================
+@st.cache_resource
+def load_models():
+    embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    vectorstore = Chroma(persist_directory="chroma-db", embedding_function=embedding)
+    retriever = vectorstore.as_retriever(
+        search_type="mmr", 
+        search_kwargs={"k": 4, "fetch_k": 10, "lambda_mult": 0.5}
     )
-
+    llm = ChatMistralAI(model="mistral-small-2603")
     return retriever, llm
 
-retriever, llm = load_components()
+retriever, llm = load_models()
 
-# --------------------------------
-# Prompt
-# --------------------------------
-prompt = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        """
-        You are a helpful assistant.
-        Answer only from the provided context.
-        If the answer is not found,
-        say "I don't know".
-        """
-    ),
-    (
-        "user",
-        """
-        Context:
-        {context}
-
-        Question:
-        {question}
-        """
-    )
-])
-
-# --------------------------------
-# Session State
-# --------------------------------
+# =====================================================
+# CHAT INTERFACE LOGIC
+# =====================================================
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Show chat history
+# Display history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# --------------------------------
-# User Input
-# --------------------------------
-if query := st.chat_input("Ask something..."):
-
-    st.session_state.messages.append(
-        {"role":"user","content":query}
-    )
-
+# Handle new input
+if question := st.chat_input("Ask a question about your documents..."):
+    st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user"):
-        st.markdown(query)
+        st.markdown(question)
 
-    docs = retriever.invoke(query)
+    with st.spinner("Retrieving and generating..."):
+        start = time.time()
+        docs = retriever.invoke(question)
+        context_text = "\n\n".join([d.page_content for d in docs])
+        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "Answer based on context: {context}"),
+            ("user", "{question}")
+        ])
+        
+        response = llm.invoke(prompt.format_prompt(context=context_text, question=question).to_messages())
+        end = time.time()
 
-    context = "\n\n".join(
-        [doc.page_content for doc in docs]
-    )
-
-    response = llm.invoke(
-        prompt.format_prompt(
-            context=context,
-            question=query
-        ).to_messages()
-    )
-
+    # Display Response
     with st.chat_message("assistant"):
         st.markdown(response.content)
-
-        with st.expander("Retrieved Context"):
+        
+        # Display Metrics cleanly using columns
+        cols = st.columns(3)
+        metrics = [
+            ("Documents", len(docs)),
+            ("Latency", f"{end-start:.2f}s"),
+            ("Tokens", len(response.content.split()))
+        ]
+        
+        for i, col in enumerate(cols):
+            with col:
+                st.markdown(f"""
+                <div class="metric-container">
+                    <div class="metric-label">{metrics[i][0]}</div>
+                    <div class="metric-value">{metrics[i][1]}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Context Expander
+        with st.expander("📚 View Retrieved Context"):
             for i, doc in enumerate(docs):
-                st.write(f"### Document {i+1}")
-                st.write(doc.page_content)
-                st.write(doc.metadata)
-
-    st.session_state.messages.append(
-        {
-            "role":"assistant",
-            "content":response.content
-        }
-    )
+                st.markdown(f"**Source {i+1}**")
+                st.info(doc.page_content)
+    
+    st.session_state.messages.append({"role": "assistant", "content": response.content})
